@@ -14,7 +14,7 @@ then, you can decide which components to use:
 
 ```lua
 ---@type Love
-local love = data.love
+_G.love = data.love
 ```
 
 (Optional)
@@ -30,6 +30,8 @@ local log = data.log
 ---@type Love, LoveLog
 local love, log = data.love, data.log
 ```
+
+(of course, only use the above if you're sure you won't be using love in any requires... which to be honest you will)
 
 that's it! now you can use love callback, events, function, etc.
 
