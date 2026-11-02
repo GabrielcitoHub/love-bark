@@ -13,6 +13,10 @@ local graphics = {
 
     images = {},
     drawIndex = 1,
+
+    texts = {},
+    textIndex = 1,
+    fontSize = 16,
 }
 
 local function createImage()
@@ -38,6 +42,46 @@ local function createImage()
         object = gameObject,
         rect = rect,
         image = image
+    }
+end
+
+local function createText()
+    local gameObject = CS.UnityEngine.GameObject(
+        "LoveGraphicsText",
+        typeof(CS.UnityEngine.RectTransform),
+        typeof(CS.UnityEngine.CanvasRenderer),
+        typeof(CS.UnityEngine.UI.Text)
+    )
+
+    gameObject.transform:SetParent(graphics.canvasObject.transform, false)
+
+    local rect = gameObject:GetComponent(typeof(CS.UnityEngine.RectTransform))
+    local text = gameObject:GetComponent(typeof(CS.UnityEngine.UI.Text))
+
+    rect.sizeDelta = CS.UnityEngine.Vector2(
+        graphics.width,
+        64
+    )
+    rect.anchorMin = CS.UnityEngine.Vector2(0.5, 0.5)
+    rect.anchorMax = CS.UnityEngine.Vector2(0.5, 0.5)
+    rect.pivot = CS.UnityEngine.Vector2(0, 1)
+
+    text.text = ""
+    text.font = CS.UnityEngine.Resources.GetBuiltinResource(
+        typeof(CS.UnityEngine.Font),
+        "Arial.ttf"
+    )
+
+    text.fontSize = 16
+    text.color = CS.UnityEngine.Color(1, 1, 1, 1)
+    text.alignment = CS.UnityEngine.TextAnchor.UpperLeft
+    text.raycastTarget = false
+    text.enabled = false
+
+    return {
+        object = gameObject,
+        rect = rect,
+        text = text
     }
 end
 
@@ -131,15 +175,93 @@ function graphics.rectangle(mode, x, y, width, height)
     )
 
     local color = graphics.color
+    image.color = CS.UnityEngine.Color(table.unpack(color))
 
-    image.color = CS.UnityEngine.Color(
+    image.enabled = true
+end
+
+---@param text string
+---@param x number?
+---@param y number?
+function graphics.print(text, x, y)
+    x = x or 0
+    y = y or 0
+
+    local index = graphics.textIndex
+    local entry = graphics.texts[index]
+
+    if not entry then
+        entry = createText()
+        graphics.texts[index] = entry
+    end
+
+    graphics.textIndex = index + 1
+
+    entry.text.text = tostring(text)
+    entry.text.fontSize = graphics.fontSize
+    entry.text.horizontalOverflow = CS.UnityEngine.HorizontalWrapMode.Overflow
+    entry.text.verticalOverflow = CS.UnityEngine.VerticalWrapMode.Overflow
+
+    local color = graphics.color
+    entry.text.color = CS.UnityEngine.Color(
         color[1],
         color[2],
         color[3],
         color[4]
     )
 
-    image.enabled = true
+    entry.rect.anchoredPosition = CS.UnityEngine.Vector2(
+        x - graphics.width / 2,
+        graphics.height / 2 - y
+    )
+
+    entry.text.enabled = true
+end
+
+---@param text string
+---@param x number
+---@param y number
+---@param limit number
+---@param align? string
+function graphics.printf(text, x, y, limit, align)
+    local index = graphics.textIndex
+    local entry = graphics.texts[index]
+
+    if not entry then
+        entry = createText()
+        graphics.texts[index] = entry
+    end
+
+    graphics.textIndex = index + 1
+
+    entry.text.text = tostring(text)
+    entry.text.fontSize = graphics.fontSize
+
+    local color = graphics.color
+    entry.text.color = CS.UnityEngine.Color(
+        color[1],
+        color[2],
+        color[3],
+        color[4]
+    )
+
+    entry.text.horizontalOverflow = CS.UnityEngine.HorizontalWrapMode.Wrap
+    entry.text.verticalOverflow = CS.UnityEngine.VerticalWrapMode.Overflow
+
+    entry.text.alignment = align == "center"
+        and CS.UnityEngine.TextAnchor.UpperCenter
+        or align == "right"
+        and CS.UnityEngine.TextAnchor.UpperRight
+        or CS.UnityEngine.TextAnchor.UpperLeft
+
+    entry.rect.sizeDelta = CS.UnityEngine.Vector2(limit, graphics.height)
+
+    entry.rect.anchoredPosition = CS.UnityEngine.Vector2(
+        x - graphics.width / 2,
+        graphics.height / 2 - y
+    )
+
+    entry.text.enabled = true
 end
 
 ---@param r? number
@@ -167,8 +289,14 @@ function graphics.clear(r, g, b, a)
 
     graphics.square.enabled = false
     graphics.drawIndex = 1
-end
 
+    graphics.textIndex = 1
+
+    if r or g or b or a then
+        local width, height = graphics.getPixelDimensions()
+        graphics.rectangle("fill", 0, 0, width, height)
+    end
+end
 function graphics.preUpdate()
 end
 
@@ -176,6 +304,10 @@ function graphics.update()
     -- Disable images that weren't used this frame
     for i = graphics.drawIndex, #graphics.images do
         graphics.images[i].image.enabled = false
+    end
+
+    for i = graphics.textIndex, #graphics.texts do
+        graphics.texts[i].text.enabled = false
     end
 end
 
@@ -194,6 +326,9 @@ function graphics.__release()
 
     graphics.images = {}
     graphics.drawIndex = 1
+
+    graphics.texts = {}
+    graphics.textIndex = 1
 
     graphics.square = nil
     graphics.squareRect = nil

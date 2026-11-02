@@ -1,13 +1,5 @@
 ---@class LoveMouse : LoveModule
 local mouse = {
-    buttonMap = {
-        l = 0, -- Left
-        r = 1, -- Right
-        m = 2, -- Middle
-        x1 = 3, -- Extra 1
-        x2 = 4, -- Extra 2
-    },
-
     position = {
         x = 0,
         y = 0
@@ -63,6 +55,19 @@ local mouse = {
         x = 0,
         y = 0
     },
+
+    buttonMap = {
+        l = 0, -- Left
+        r = 1, -- Right
+        m = 2, -- Middle
+        x1 = 3, -- Extra 1
+        x2 = 4, -- Extra 2
+    },
+
+    doubleClickDelay = 0.3, -- Seconds
+    doubleClickDistance = 10, -- Pixels
+
+    clicks = {},
 }
 
 function mouse.load()
@@ -101,10 +106,8 @@ end
 
 ---@return number, number
 function mouse.getGlobalPosition()
-    local position = CS.UnityEngine.Input.mousePosition
-    local height = mouse.love.graphics.getPixelHeight()
-
-    return position.x, height - position.y
+    local position = mouse.global_position
+    return position.x, position.y
 end
 
 function mouse.getGlobalX()
@@ -117,16 +120,30 @@ function mouse.getGlobalY()
     return y
 end
 
-function mouse.getPosition()
-    local x, y = mouse.getGlobalPosition()
+function mouse.outScreen(x, y)
     local width, height = mouse.love.graphics.getPixelDimensions()
+    return x < 0 or x > width or y < 0 or y > height
+end
 
-    if x < 0 or x > width or y < 0 or y > height then
-        local last = mouse.last
-        return last.x or x, last.y or y
+---@param x number
+---@param y number
+---@param lastX number
+---@param lastY number
+function mouse._getPosition(x, y, lastX, lastY)
+    local outScreen = mouse.outScreen(x, y)
+
+    if outScreen then
+        return lastX or x, lastY or y
     end
 
     return x, y
+end
+
+function mouse.getPosition()
+    local x, y = mouse.getGlobalPosition()
+    local lastX, lastY = mouse.getLastPosition()
+
+    return mouse._getPosition(x, y, lastX, lastY)
 end
 
 function mouse.getX()
@@ -157,15 +174,9 @@ end
 
 function mouse.getWorldPosition()
     local x, y = mouse.getWorldPositionGlobal()
-    local screen_x, screen_y = mouse.getGlobalPosition()
-    local width, height = mouse.love.graphics.getPixelDimensions()
+    local lastX, lastY = mouse.getLastWorldPosition()
 
-    if screen_x < 0 or screen_x > width or screen_y < 0 or screen_y > height then
-        local last = mouse.world_last
-        return last.x or x, last.y or y
-    end
-
-    return x, y
+    return mouse._getPosition(x, y, lastX, lastY)
 end
 
 function mouse.getWorldX()
@@ -197,15 +208,9 @@ end
 
 function mouse.getTilePosition()
     local x, y = mouse.getTilePositionGlobal()
-    local screen_x, screen_y = mouse.getGlobalPosition()
-    local width, height = mouse.love.graphics.getPixelDimensions()
+    local lastX, lastY = mouse.getLastTilePosition()
 
-    if screen_x < 0 or screen_x > width or screen_y < 0 or screen_y > height then
-        local last = mouse.tile_last
-        return last.x or x, last.y or y
-    end
-
-    return x, y
+    return mouse._getPosition(x, y, lastX, lastY)
 end
 
 function mouse.getTileX()
@@ -254,22 +259,12 @@ function mouse.updatePosition()
     mouse.position.y = y
 end
 
-function mouse.updateLastPosition()
-    local x, y = mouse.getPosition()
-    mouse.last.x = x
-    mouse.last.y = y
-end
-
 function mouse.updatePositionGlobal()
-    local x, y = mouse.getGlobalPosition()
-    mouse.global_position.x = x
-    mouse.global_position.y = y
-end
+    local unityPosition = CS.UnityEngine.Input.mousePosition
+    local height = mouse.love.graphics.getPixelHeight()
 
-function mouse.updateLastPositionGlobal()
-    local x, y = mouse.getGlobalPosition()
-    mouse.global_last.x = x
-    mouse.global_last.y = y
+    mouse.global_position.x = unityPosition.x
+    mouse.global_position.y = height - unityPosition.y
 end
 
 function mouse.updatePositionWorld()
@@ -278,22 +273,10 @@ function mouse.updatePositionWorld()
     mouse.world_position.y = y
 end
 
-function mouse.updateLastPositionWorld()
-    local x, y = mouse.getWorldPosition()
-    mouse.world_last.x = x
-    mouse.world_last.y = y
-end
-
 function mouse.updatePositionWorldGlobal()
     local x, y = mouse.getWorldPositionGlobal()
     mouse.global_world_position.x = x
     mouse.global_world_position.y = y
-end
-
-function mouse.updateLastPositionWorldGlobal()
-    local x, y = mouse.getWorldPositionGlobal()
-    mouse.global_world_last.x = x
-    mouse.global_world_last.y = y
 end
 
 function mouse.updatePositionTile()
@@ -302,115 +285,214 @@ function mouse.updatePositionTile()
     mouse.tile_position.y = y
 end
 
-function mouse.updateLastPositionTile()
-    local x, y = mouse.getTilePosition()
-    mouse.tile_last.x = x
-    mouse.tile_last.y = y
-end
-
 function mouse.updatePositionTileGlobal()
     local x, y = mouse.getTilePositionGlobal()
     mouse.global_tile_position.x = x
     mouse.global_tile_position.y = y
 end
 
-function mouse.updateLastPositionTileGlobal()
-    local x, y = mouse.getTilePositionGlobal()
-    mouse.global_tile_last.x = x
-    mouse.global_tile_last.y = y
+function mouse.updateLastPosition(last, position)
+    last = last or mouse.last
+    position = position or mouse.position
+    last.x = position.x
+    last.y = position.y
 end
 
-function mouse.updatePositionEvent()
-    mouse.updatePosition()
+function mouse.updateLastPositionGlobal()
+    mouse.updateLastPosition(mouse.global_last, mouse.global_position)
+end
 
-    local x, y = mouse.getPosition()
-    local lastX, lastY = mouse.getLastPosition()
+function mouse.updateLastPositionWorld()
+    mouse.updateLastPosition(mouse.world_last, mouse.world_position)
+end
+
+function mouse.updateLastPositionWorldGlobal()
+    mouse.updateLastPosition(mouse.global_world_last, mouse.global_world_position)
+end
+
+function mouse.updateLastPositionTile()
+    mouse.updateLastPosition(mouse.tile_last, mouse.tile_position)
+end
+
+function mouse.updateLastPositionTileGlobal()
+    mouse.updateLastPosition(mouse.global_tile_last, mouse.global_tile_position)
+end
+
+---@param x number
+---@param y number
+---@param lastX number
+---@param lastY number
+function mouse.moved(x, y, lastX, lastY)
     if x ~= lastX or y ~= lastY then
         local dx = x - lastX
         local dy = y - lastY
-        mouse.love.mousemoved(x, y, dx, dy)
+        return true, dx, dy
     end
-    
-    mouse.updateLastPosition()
+
+    return false, 0, 0
 end
 
 function mouse.updateGlobalPositionEvent()
-    mouse.updatePositionGlobal()
-
     local x, y = mouse.getGlobalPosition()
     local lastX, lastY = mouse.getLastGlobalPosition()
-    if x ~= lastX or y ~= lastY then
-        local dx = x - lastX
-        local dy = y - lastY
-        mouse.love.mousemovedglobal(x, y, dx, dy)
+    local moved, dx, dy = mouse.moved(x, y, lastX, lastY)
+    if moved then
+        mouse.love.call(mouse.love.mousemovedglobal, x, y, dx, dy)
     end
-    
-    mouse.updateLastPositionGlobal()
 end
 
-function mouse.updateWorldPositionEvent()
-    mouse.updatePositionWorld()
-
-    local x, y = mouse.getWorldPosition()
-    local lastX, lastY = mouse.getLastWorldPosition()
-    if x ~= lastX or y ~= lastY then
-        local dx = x - lastX
-        local dy = y - lastY
-        mouse.love.mousemovedworld(x, y, dx, dy)
+function mouse.updatePositionEvent()
+    local x, y = mouse.getPosition()
+    local lastX, lastY = mouse.getLastPosition()
+    local moved, dx, dy = mouse.moved(x, y, lastX, lastY)
+    if moved then
+        mouse.love.call(mouse.love.mousemoved, x, y, dx, dy)
     end
-
-    mouse.updateLastPositionWorld()
 end
 
 function mouse.updateGlobalWorldPositionEvent()
-    mouse.updatePositionWorldGlobal()
-
     local x, y = mouse.getWorldPositionGlobal()
     local lastX, lastY = mouse.getLastGlobalWorldPosition()
-    if x ~= lastX or y ~= lastY then
-        local dx = x - lastX
-        local dy = y - lastY
-        mouse.love.mousemovedworldglobal(x, y, dx, dy)
+    local moved, dx, dy = mouse.moved(x, y, lastX, lastY)
+    if moved then
+        mouse.love.call(mouse.love.mousemovedworldglobal, x, y, dx, dy)
     end
-
-    mouse.updateLastPositionWorldGlobal()
 end
 
-function mouse.updateTilePositionEvent()
-    mouse.updatePositionTile()
-
-    local x, y = mouse.getTilePosition()
-    local lastX, lastY = mouse.getLastTilePosition()
-    if x ~= lastX or y ~= lastY then
-        local dx = x - lastX
-        local dy = y - lastY
-        mouse.love.mousemovedtile(x, y, dx, dy)
+function mouse.updateWorldPositionEvent()
+    local x, y = mouse.getWorldPosition()
+    local lastX, lastY = mouse.getLastWorldPosition()
+    local moved, dx, dy = mouse.moved(x, y, lastX, lastY)
+    if moved then
+        mouse.love.call(mouse.love.mousemovedworld, x, y, dx, dy)
     end
-    
-    mouse.updateLastPositionTile()
 end
 
 function mouse.updateGlobalTilePositionEvent()
-    mouse.updatePositionTileGlobal()
-
     local x, y = mouse.getTilePositionGlobal()
     local lastX, lastY = mouse.getLastGlobalTilePosition()
-    if x ~= lastX or y ~= lastY then
-        local dx = x - lastX
-        local dy = y - lastY
-        mouse.love.mousemovedtileglobal(x, y, dx, dy)
+    local moved, dx, dy = mouse.moved(x, y, lastX, lastY)
+    if moved then
+        mouse.love.call(mouse.love.mousemovedtileglobal, x, y, dx, dy)
     end
-    
-    mouse.updateLastPositionTileGlobal()
+end
+
+function mouse.updateTilePositionEvent()
+    local x, y = mouse.getTilePosition()
+    local lastX, lastY = mouse.getLastTilePosition()
+    local moved, dx, dy = mouse.moved(x, y, lastX, lastY)
+    if moved then
+        mouse.love.call(mouse.love.mousemovedtile, x, y, dx, dy)
+    end
+end
+
+---@param button number
+---@param presses number
+function mouse.pressed(button, presses)
+    local love = mouse.love
+
+    local x, y = mouse.getPosition()
+    love.call(mouse.love.mousepressed, x, y, button, false, presses)
+
+    local world_x, world_y = mouse.getWorldPosition()
+    love.call(mouse.love.mousepressedworld, world_x, world_y, button, false, presses)
+
+    local tile_x, tile_y = mouse.getTilePosition()
+    love.call(mouse.love.mousepressedtile, tile_x, tile_y, button, false, presses)
+end
+
+---@param button number
+---@param presses number
+function mouse.released(button, presses)
+    local love = mouse.love
+
+    local x, y = mouse.getPosition()
+    love.call(mouse.love.mousereleased, x, y, button, false, presses)
+
+    local world_x, world_y = mouse.getWorldPosition()
+    love.call(mouse.love.mousereleasedworld, world_x, world_y, button, false, presses)
+
+    local tile_x, tile_y = mouse.getTilePosition()
+    love.call(mouse.love.mousereleasedtile, tile_x, tile_y, button, false, presses)
+end
+
+---@param button number
+---@param pressed boolean
+function mouse.getPressCount(button, pressed)
+    local x, y = mouse.getPosition()
+    local timer = mouse.love.timer.getUnscaledTime()
+
+    mouse.clicks[pressed] = mouse.clicks[pressed] or {}
+    local previous = mouse.clicks[pressed][button]
+
+    local presses = 1
+
+    if previous then
+        local dx = x - previous.x
+        local dy = y - previous.y
+        local distanceSquared = dx * dx + dy * dy
+
+        if timer - previous.time <= mouse.doubleClickDelay
+            and distanceSquared <= mouse.doubleClickDistance ^ 2 then
+            presses = previous.presses + 1
+        end
+    end
+
+    mouse.clicks[pressed][button] = {
+        x = x,
+        y = y,
+        time = timer,
+        presses = presses
+    }
+
+    return presses
+end
+
+function mouse.updateButtonEvents()
+    local input = CS.UnityEngine.Input
+
+    for unityButton = 0, 4 do
+        -- Love2D uses 1-based button indices.
+        local button = unityButton + 1
+
+        if input.GetMouseButtonDown(unityButton) then
+            local presses = mouse.getPressCount(button, true)
+            mouse.pressed(button, presses)
+        end
+
+        if input.GetMouseButtonUp(unityButton) then
+            local presses = mouse.getPressCount(button, false)
+            mouse.released(button, presses)
+        end
+    end
 end
 
 function mouse.update()
-    mouse.updatePositionEvent()
+    mouse.updatePositionGlobal()
     mouse.updateGlobalPositionEvent()
-    mouse.updateWorldPositionEvent()
+    mouse.updateLastPositionGlobal()
+    
+    mouse.updatePosition()
+    mouse.updatePositionEvent()
+    mouse.updateLastPosition()
+
+    mouse.updatePositionWorldGlobal()
     mouse.updateGlobalWorldPositionEvent()
-    mouse.updateTilePositionEvent()
+    mouse.updateLastPositionWorldGlobal()
+    
+    mouse.updatePositionWorld()
+    mouse.updateWorldPositionEvent()
+    mouse.updateLastPositionWorld()
+
+    mouse.updatePositionTileGlobal()
     mouse.updateGlobalTilePositionEvent()
+    mouse.updateLastPositionTileGlobal()
+
+    mouse.updatePositionTile()
+    mouse.updateTilePositionEvent()
+    mouse.updateLastPositionTile()
+
+    mouse.updateButtonEvents()
 end
 
 return mouse

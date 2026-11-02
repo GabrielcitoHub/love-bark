@@ -41,17 +41,52 @@ local function moduleRequire(path)
 end
 
 ---@class Love
-local love = {}
+local love = {
+    crashed = false,
+    error = nil
+}
 
 local function attachmodule(path)
     local module = moduleRequire(path)
     module.love = love
 
-    if module.load then
-        module.load()
+    return module
+end
+
+function love.errorhandler(err)
+    local traceback = debug.traceback(tostring(err), 2)
+    local love_bark_err = "[love-bark] Error:\n" .. traceback
+    print(love_bark_err)
+
+    love.crashed = true
+
+    return function()
+        local graphics = love.graphics
+
+        graphics.clear(89 / 255, 157 / 255, 220 / 255, 0.1)
+
+        graphics.setColor(1, 1, 1, 1)
+
+        local x, y = 30, 70
+        local width = graphics.getPixelWidth()
+        graphics.printf(love_bark_err, x, y, width - x, "left")
+
+        graphics.update()
+    end
+end
+
+function love.call(callback, ...)
+    local args = {...}
+
+    local success, result = xpcall(function()
+        return callback(table.unpack(args))
+    end, love.errorhandler)
+
+    if not success then
+        love.error = result
     end
 
-    return module
+    return success, result
 end
 
 ---@type LoveAudio
@@ -94,10 +129,18 @@ function love.draw()
 end
 
 function onLoad()
-    love.load()
+    love.call(love.load)
+
+    love.graphics.load()
+    love.mouse.load()
 end
 
 function onUpdate()
+    if love.crashed then
+        love.error()
+        return
+    end
+
     local timer = love.timer
     if timer then
         timer.update()
@@ -116,9 +159,9 @@ function onUpdate()
 
     local dt = love.timer:getDelta()
     local udt = love.timer:getUnscaledDelta()
-    love.update(dt, udt)
+    love.call(love.update, dt, udt)
     
-    love.draw()
+    love.call(love.draw)
 
     local graphics = love.graphics
     if graphics then
@@ -191,6 +234,32 @@ end
 ---@param dx number
 ---@param dy number
 function love.mousemovedtileglobal(x, y, dx, dy)
+end
+
+---@alias LoveMousePressRelease fun(x: number, y: number, button: number, istouch: boolean, presses: number)
+
+---@type LoveMousePressRelease
+function love.mousepressed(x, y, button, isTouch, presses)
+end
+
+---@type LoveMousePressRelease
+function love.mousepressedworld(x, y, button, isTouch, presses)
+end
+
+---@type LoveMousePressRelease
+function love.mousepressedtile(x, y, button, isTouch, presses)
+end
+
+---@type LoveMousePressRelease
+function love.mousereleased(x, y, button, isTouch, presses)
+end
+
+---@type LoveMousePressRelease
+function love.mousereleasedworld(x, y, button, isTouch, presses)
+end
+
+---@type LoveMousePressRelease
+function love.mousereleasedtile(x, y, button, isTouch, presses)
 end
 
 local data = {
