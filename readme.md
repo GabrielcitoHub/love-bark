@@ -2,7 +2,7 @@
 
 Love bark is a Bark wrapper that takes some of their functions and adapts each to the usual Love2d functions, using unity counterparts when Bark doesn't have it.
 
-# How to use
+# Usage
 
 In your bark mod, when requiring love-bark do it like this:
 
