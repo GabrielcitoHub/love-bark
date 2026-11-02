@@ -2,7 +2,7 @@
 
 Love bark is a Bark wrapper that takes some of their functions and adapts each to the usual Love2d functions, using unity counterparts when Bark doesn't have it.
 
-# How to use
+# Usage
 
 In your bark mod, when requiring love-bark do it like this:
 
@@ -14,7 +14,7 @@ then, you can decide which components to use:
 
 ```lua
 ---@type Love
-local love = data.love
+_G.love = data.love
 ```
 
 (Optional)
@@ -30,6 +30,8 @@ local log = data.log
 ---@type Love, LoveLog
 local love, log = data.love, data.log
 ```
+
+(of course, only use the above if you're sure you won't be using love in any requires... which to be honest you will)
 
 that's it! now you can use love callback, events, function, etc.
 
