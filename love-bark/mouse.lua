@@ -68,6 +68,8 @@ local mouse = {
     doubleClickDistance = 10, -- Pixels
 
     clicks = {},
+
+    relative = false,
 }
 
 function mouse.load()
@@ -104,7 +106,6 @@ function mouse.isDown(button, ...)
     return false
 end
 
----@return number, number
 function mouse.getGlobalPosition()
     local position = mouse.global_position
     return position.x, position.y
@@ -156,24 +157,23 @@ function mouse.getY()
     return y
 end
 
----@return number, number
-function mouse.getWorldPositionGlobal()
+function mouse.getWorldGlobalPosition()
     local position = Input:GetMousePosition()
     return position.x, position.y
 end
 
 function mouse.getWorldGlobalX()
-    local x = mouse.getWorldPositionGlobal()
+    local x = mouse.getWorldGlobalPosition()
     return x
 end
 
 function mouse.getWorldGlobalY()
-    local _, y = mouse.getWorldPositionGlobal()
+    local _, y = mouse.getWorldGlobalPosition()
     return y
 end
 
 function mouse.getWorldPosition()
-    local x, y = mouse.getWorldPositionGlobal()
+    local x, y = mouse.getWorldGlobalPosition()
     local lastX, lastY = mouse.getLastWorldPosition()
 
     return mouse._getPosition(x, y, lastX, lastY)
@@ -189,25 +189,24 @@ function mouse.getWorldY()
     return y
 end
 
----@return integer, integer
-function mouse.getTilePositionGlobal()
-    local x, y = mouse.getWorldPositionGlobal()
+function mouse.getTileGlobalPosition()
+    local x, y = mouse.getWorldGlobalPosition()
     local tilePos = World:ToTilePosition(x, y)
     return tilePos.x, tilePos.y
 end
 
 function mouse.getTileGlobalX()
-    local x = mouse.getTilePositionGlobal()
+    local x = mouse.getTileGlobalPosition()
     return x
 end
 
 function mouse.getTileGlobalY()
-    local _, y = mouse.getTilePositionGlobal()
+    local _, y = mouse.getTileGlobalPosition()
     return y
 end
 
 function mouse.getTilePosition()
-    local x, y = mouse.getTilePositionGlobal()
+    local x, y = mouse.getTileGlobalPosition()
     local lastX, lastY = mouse.getLastTilePosition()
 
     return mouse._getPosition(x, y, lastX, lastY)
@@ -253,6 +252,94 @@ function mouse.getLastGlobalTilePosition()
     return last.x, last.y
 end
 
+---@return boolean enabled True if relative mode is enabled, false if it's disabled
+function mouse.getRelativeMode()
+    return mouse.relative
+end
+
+---@return boolean supported Whether the system has cursor functionality.
+function mouse.isCursorSupported()
+    return false
+end
+
+---@return boolean grabbed True if the cursor is grabbed (confined or locked).
+function mouse.isGrabbed()
+    return CS.UnityEngine.Cursor.lockState ~= CS.UnityEngine.CursorLockMode.None
+end
+
+---@return boolean visible True if the cursor to visible, false if the cursor is hidden.
+function mouse.isVisible()
+    return CS.UnityEngine.Cursor.visible
+end
+
+---@param grab integer|boolean|string? True to confine the mouse, false to let it leave the window.
+function mouse.setGrabbed(grab)
+    local state
+
+    if grab == nil then
+        state = CS.UnityEngine.CursorLockMode.Confined
+    elseif type(grab) == "boolean" then
+        state = grab
+            and CS.UnityEngine.CursorLockMode.Confined
+            or CS.UnityEngine.CursorLockMode.None
+    elseif type(grab) == "string" then
+        state = CS.UnityEngine.CursorLockMode[grab]
+    else
+        state = grab
+    end
+
+    CS.UnityEngine.Cursor.lockState = state
+end
+
+-- TO-DO: Implement, mouse position isn't implemented by puerts (workaround?)
+
+-- Sets the current position of the mouse. Non-integer values are floored.
+---@param x number The new position of the mouse along the x-axis.
+---@param y number The new position of the mouse along the y-axis.
+function mouse.setPosition(x, y)
+    x = math.floor(x)
+    y = math.floor(y)
+    return false
+end
+
+-- Sets the current X position of the mouse. Non-integer values are floored. 
+---@param x number The new position of the mouse along the x-axis.
+function mouse.setX(x)
+    x = math.floor(x)
+    return false
+end
+
+-- Sets the current Y position of the mouse. Non-integer values are floored. 
+---@param y number The new position of the mouse along the y-axis.
+function mouse.setY(y)
+    y = math.floor(y)
+    return false
+end
+
+---@param enable boolean? True to enable relative mode, false to disable it.
+function mouse.setRelativeMode(enable)
+    if enable == nil then
+        enable = true
+    end
+
+    if enable then
+        CS.UnityEngine.Cursor.lockState = CS.UnityEngine.CursorLockMode.Locked
+    else
+        CS.UnityEngine.Cursor.lockState = CS.UnityEngine.CursorLockMode.None
+    end
+
+    mouse.relative = enable
+end
+
+---@param visible boolean? True to set the cursor to visible, false to hide the cursor.
+function mouse.setVisible(visible)
+    if visible == nil then
+        visible = true
+    end
+
+    CS.UnityEngine.Cursor.visible = visible
+end
+
 function mouse.updatePosition()
     local x, y = mouse.getPosition()
     mouse.position.x = x
@@ -274,7 +361,7 @@ function mouse.updatePositionWorld()
 end
 
 function mouse.updatePositionWorldGlobal()
-    local x, y = mouse.getWorldPositionGlobal()
+    local x, y = mouse.getWorldGlobalPosition()
     mouse.global_world_position.x = x
     mouse.global_world_position.y = y
 end
@@ -286,7 +373,7 @@ function mouse.updatePositionTile()
 end
 
 function mouse.updatePositionTileGlobal()
-    local x, y = mouse.getTilePositionGlobal()
+    local x, y = mouse.getTileGlobalPosition()
     mouse.global_tile_position.x = x
     mouse.global_tile_position.y = y
 end
@@ -323,6 +410,13 @@ end
 ---@param lastX number
 ---@param lastY number
 function mouse.moved(x, y, lastX, lastY)
+    if mouse.relative then -- TO-DO: Fix implementation
+        local dx = CS.UnityEngine.Input.GetAxis("Mouse X")
+        local dy = CS.UnityEngine.Input.GetAxis("Mouse Y")
+        local moved = dx ~= 0 or dy ~= 0
+        return moved, dx, dy
+    end
+
     if x ~= lastX or y ~= lastY then
         local dx = x - lastX
         local dy = y - lastY
@@ -351,7 +445,7 @@ function mouse.updatePositionEvent()
 end
 
 function mouse.updateGlobalWorldPositionEvent()
-    local x, y = mouse.getWorldPositionGlobal()
+    local x, y = mouse.getWorldGlobalPosition()
     local lastX, lastY = mouse.getLastGlobalWorldPosition()
     local moved, dx, dy = mouse.moved(x, y, lastX, lastY)
     if moved then
@@ -369,7 +463,7 @@ function mouse.updateWorldPositionEvent()
 end
 
 function mouse.updateGlobalTilePositionEvent()
-    local x, y = mouse.getTilePositionGlobal()
+    local x, y = mouse.getTileGlobalPosition()
     local lastX, lastY = mouse.getLastGlobalTilePosition()
     local moved, dx, dy = mouse.moved(x, y, lastX, lastY)
     if moved then
@@ -392,13 +486,13 @@ function mouse.pressed(button, presses)
     local love = mouse.love
 
     local x, y = mouse.getPosition()
-    love.call(mouse.love.mousepressed, x, y, button, false, presses)
+    love.call(love.mousepressed, x, y, button, false, presses)
 
     local world_x, world_y = mouse.getWorldPosition()
-    love.call(mouse.love.mousepressedworld, world_x, world_y, button, false, presses)
+    love.call(love.mousepressedworld, world_x, world_y, button, false, presses)
 
     local tile_x, tile_y = mouse.getTilePosition()
-    love.call(mouse.love.mousepressedtile, tile_x, tile_y, button, false, presses)
+    love.call(love.mousepressedtile, tile_x, tile_y, button, false, presses)
 end
 
 ---@param button number
@@ -406,14 +500,14 @@ end
 function mouse.released(button, presses)
     local love = mouse.love
 
-    local x, y = mouse.getPosition()
-    love.call(mouse.love.mousereleased, x, y, button, false, presses)
+    local x, y = mouse.getGlobalPosition()
+    love.call(love.mousereleased, x, y, button, false, presses)
 
-    local world_x, world_y = mouse.getWorldPosition()
-    love.call(mouse.love.mousereleasedworld, world_x, world_y, button, false, presses)
+    local world_x, world_y = mouse.getWorldGlobalPosition()
+    love.call(love.mousereleasedworld, world_x, world_y, button, false, presses)
 
-    local tile_x, tile_y = mouse.getTilePosition()
-    love.call(mouse.love.mousereleasedtile, tile_x, tile_y, button, false, presses)
+    local tile_x, tile_y = mouse.getTileGlobalPosition()
+    love.call(love.mousereleasedtile, tile_x, tile_y, button, false, presses)
 end
 
 ---@param button number
@@ -467,6 +561,14 @@ function mouse.updateButtonEvents()
     end
 end
 
+function mouse.updateWheelEvent()
+    local scroll = CS.UnityEngine.Input.mouseScrollDelta
+
+    if scroll.x ~= 0 or scroll.y ~= 0 then
+        mouse.love.call(mouse.love.wheelmoved, scroll.x, scroll.y)
+    end
+end
+
 function mouse.update()
     mouse.updatePositionGlobal()
     mouse.updateGlobalPositionEvent()
@@ -493,6 +595,7 @@ function mouse.update()
     mouse.updateLastPositionTile()
 
     mouse.updateButtonEvents()
+    mouse.updateWheelEvent()
 end
 
 return mouse

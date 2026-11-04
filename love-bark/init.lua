@@ -35,9 +35,22 @@ for _, path in ipairs(newPaths) do
     end
 end
 
-local function moduleRequire(path)
+local function requiremodule(path)
     local requirePath = moduleRequirePath .. "." .. path
     return require(requirePath)
+end
+
+_G.unpack = table.unpack
+
+---@class LoveLog
+local function log(...)
+    local args = {}
+
+    for i = 1, select("#", ...) do
+        args[i] = tostring(select(i, ...))
+    end
+
+    Log:Info(table.concat(args, "\t"))
 end
 
 ---@class Love
@@ -47,7 +60,7 @@ local love = {
 }
 
 local function attachmodule(path)
-    local module = moduleRequire(path)
+    local module = requiremodule(path)
     module.love = love
 
     return module
@@ -79,7 +92,7 @@ function love.call(callback, ...)
     local args = {...}
 
     local success, result = xpcall(function()
-        return callback(table.unpack(args))
+        return callback(unpack(args))
     end, love.errorhandler)
 
     if not success then
@@ -89,6 +102,8 @@ function love.call(callback, ...)
     return success, result
 end
 
+-- love
+
 ---@type LoveAudio
 love.audio = attachmodule("audio")
 
@@ -96,12 +111,21 @@ love.audio = attachmodule("audio")
 love.graphics = attachmodule("graphics")
 
 ---@type LoveTimer
-love.timer = moduleRequire("timer")
+love.timer = requiremodule("timer")
 
 love.keyboard = attachmodule("keyboard")
 
 ---@type LoveMouse
 love.mouse = attachmodule("mouse")
+
+
+-- bark
+
+---@type LovePlayer
+love.player = attachmodule("bark.player")
+
+---@type LoveBody
+love.body = attachmodule("bark.body")
 
 ---@class LoveModule
 ---@field love Love
@@ -135,7 +159,7 @@ function onLoad()
     love.mouse.load()
 end
 
-function onUpdate()
+function love.run()
     if love.crashed then
         love.error()
         return
@@ -144,6 +168,11 @@ function onUpdate()
     local timer = love.timer
     if timer then
         timer.update()
+    end
+
+    local keyboard = love.keyboard
+    if keyboard then
+        keyboard.update()
     end
 
     local mouse = love.mouse
@@ -169,102 +198,195 @@ function onUpdate()
     end
 end
 
+function onUpdate()
+    love.run()
+end
+
+-- *Override* Called when the mod is disabled.
+function love.quit()
+end
+
 function onDisable()
     local graphics = love.graphics
     if graphics then
         graphics.clear()
-        graphics.__release()
-    end
-end
-
----@class LoveLog
-local function log(...)
-    local args = {}
-
-    for i = 1, select("#", ...) do
-        args[i] = tostring(select(i, ...))
+        graphics.release()
     end
 
-    Log:Info(table.concat(args, "\t"))
+    love.quit()
 end
+
+-- Keyboard Events
+
+-- *Override* Called when pressing a key.
+function love.keypressed(key, scancode, isrepeat)
+end
+
+-- *Override* Called when releasing a key.
+function love.keyreleased(key, scancode)
+end
+
+-- Mouse Events
+
+---@alias LoveMouseMovedEvent fun(x: number, y: number, dx: number, dy: number)
 
 -- *Override* Called when the mouse moves across the screen.
----@param x number
----@param y number
----@param dx number
----@param dy number
+---@type LoveMouseMovedEvent
 function love.mousemoved(x, y, dx, dy)
 end
 
 -- *Override* Called when the mouse moves across the screen... even outside of the screen.
----@param x number
----@param y number
----@param dx number
----@param dy number
+---@type LoveMouseMovedEvent
 function love.mousemovedglobal(x, y, dx, dy)
 end
 
 -- *Override* Called when the mouse moves across the world.
----@param x number
----@param y number
----@param dx number
----@param dy number
+---@type LoveMouseMovedEvent
 function love.mousemovedworld(x, y, dx, dy)
 end
 
 -- *Override* Called when the mouse moves across the world even outside the screen.
----@param x number
----@param y number
----@param dx number
----@param dy number
+---@type LoveMouseMovedEvent
 function love.mousemovedworldglobal(x, y, dx, dy)
 end
 
 -- *Override* Called when the mouse moves across a tile.
----@param x number
----@param y number
----@param dx number
----@param dy number
+---@type LoveMouseMovedEvent
 function love.mousemovedtile(x, y, dx, dy)
 end
 
 -- *Override* Called when the mouse moves across a tile even outside the screen.
----@param x number
----@param y number
----@param dx number
----@param dy number
+---@type LoveMouseMovedEvent
 function love.mousemovedtileglobal(x, y, dx, dy)
 end
 
----@alias LoveMousePressRelease fun(x: number, y: number, button: number, istouch: boolean, presses: number)
+---@alias LoveMousePressReleaseEvent fun(x: number, y: number, button: number, istouch: boolean, presses: number)
 
----@type LoveMousePressRelease
-function love.mousepressed(x, y, button, isTouch, presses)
+---@type LoveMousePressReleaseEvent
+function love.mousepressed(x, y, button, istouch, presses)
 end
 
----@type LoveMousePressRelease
-function love.mousepressedworld(x, y, button, isTouch, presses)
+---@type LoveMousePressReleaseEvent
+function love.mousepressedworld(x, y, button, istouch, presses)
 end
 
----@type LoveMousePressRelease
-function love.mousepressedtile(x, y, button, isTouch, presses)
+---@type LoveMousePressReleaseEvent
+function love.mousepressedtile(x, y, button, istouch, presses)
 end
 
----@type LoveMousePressRelease
-function love.mousereleased(x, y, button, isTouch, presses)
+---@type LoveMousePressReleaseEvent
+function love.mousereleased(x, y, button, istouch, presses)
 end
 
----@type LoveMousePressRelease
-function love.mousereleasedworld(x, y, button, isTouch, presses)
+---@type LoveMousePressReleaseEvent
+function love.mousereleasedworld(x, y, button, istouch, presses)
 end
 
----@type LoveMousePressRelease
-function love.mousereleasedtile(x, y, button, isTouch, presses)
+---@type LoveMousePressReleaseEvent
+function love.mousereleasedtile(x, y, button, istouch, presses)
 end
 
-local data = {
-    love = love,
-    log = log,
-}
+---@param x number
+---@param y number
+-- *Override* Called while scrolling with the mouse wheel.
+function love.wheelmoved(x, y)
+end
 
-return data
+-- Bark
+
+-- Player Events
+
+function love.jumped()
+end
+
+function love.landed()
+end
+
+function love.died()
+end
+
+-- Body Events
+
+function love.cardiacarrest()
+end
+
+function love.cardiacarrestrecover()
+end
+
+function love.fibrillation()
+end
+
+function love.fibrillationrecover()
+end
+
+function love.breathstop()
+end
+
+function love.breathrecover()
+end
+
+function love.unconscious()
+end
+
+function love.conscious()
+end
+
+function love.braindying()
+end
+
+function love.braindyingrecover()
+end
+
+function love.climb()
+end
+
+function love.climbend()
+end
+
+function love.exercise()
+end
+
+function love.exerciseend()
+end
+
+function love.switchhands()
+end
+
+---@param right boolean True if the character is now facing right, false if facing left.
+function love.turnaround(right)
+end
+
+function love.crouch()
+end
+
+function love.uncrouch()
+end
+
+---@param itemid string
+---@param slot integer
+function love.pickup(itemid, slot)
+end
+
+---@param slot integer
+function love.drop(itemid)
+end
+
+function love.fellasleep()
+end
+
+function love.wokeup()
+end
+
+function love.laststand()
+end
+
+function love.disfigure()
+end
+
+---@param eyeless boolean True if lost both eyes, false otherwise.
+function love.losteye(eyeless)
+end
+
+love.log = log
+
+return love

@@ -1,0 +1,21 @@
+---@meta
+
+-- =========================================================
+-- Camera
+-- =========================================================
+
+---@class CSUnityEngineCamera : CSUnityEngineBehaviour
+---@field pixelWidth number
+---@field pixelHeight number
+---@field aspect number
+---@field orthographic boolean
+---@field orthographicSize number
+---@field fieldOfView number
+---@field nearClipPlane number
+---@field farClipPlane number
+---@field rect CSUnityEngineRect
+---@field pixelRect CSUnityEngineRect
+---@field backgroundColor CSUnityEngineColor
+---@field depth number
+---@field targetDisplay integer
+---@field main CSUnityEngineCamera

@@ -1,0 +1,15 @@
+---@meta
+
+---@class CSUnityEngineVector2
+---@field x number
+---@field y number
+---@field magnitude number
+---@field sqrMagnitude number
+---@field normalized CSUnityEngineVector2
+---@field zero CSUnityEngineVector2
+---@field one CSUnityEngineVector2
+---@field up CSUnityEngineVector2
+---@field down CSUnityEngineVector2
+---@field left CSUnityEngineVector2
+---@field right CSUnityEngineVector2
+---@field this any

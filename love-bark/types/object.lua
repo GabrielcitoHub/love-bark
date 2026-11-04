@@ -1,5 +1,12 @@
 ---@class LoveObject
-local object = {}
+local object = {
+    __type = nil,
+    __released = false,
+}
+
+-- *Override* Called when the object is released by calling object:release()
+function object:__release()
+end
 
 function object:release()
     if self.__released then return false end

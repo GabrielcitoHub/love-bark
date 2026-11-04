@@ -1,21 +1,18 @@
 ---@class LoveTimer
 local timer = {
-    delta = 1,
-    unscaledDelta = 1,
-    unscaledTime = 0
+    delta = 1.0,
+    unscaledDelta = 1.0,
+    unscaledTime = 0.0
 }
 
----@return number
 function timer.getDelta()
     return timer.delta
 end
 
----@return number
 function timer.getUnscaledDelta()
     return timer.unscaledDelta
 end
 
----@return number
 function timer.getUnscaledTime()
     return timer.unscaledTime
 end

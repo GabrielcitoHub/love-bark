@@ -175,7 +175,7 @@ function graphics.rectangle(mode, x, y, width, height)
     )
 
     local color = graphics.color
-    image.color = CS.UnityEngine.Color(table.unpack(color))
+    image.color = CS.UnityEngine.Color(unpack(color))
 
     image.enabled = true
 end
@@ -311,7 +311,7 @@ function graphics.update()
     end
 end
 
-function graphics.__release()
+function graphics.release()
     for i = 1, #graphics.images do
         local entry = graphics.images[i]
 

@@ -7,31 +7,14 @@ Love bark is a Bark wrapper that takes some of their functions and adapts each t
 In your bark mod, when requiring love-bark do it like this:
 
 ```lua
-local data = require("ScriptMod.Mods.YourModFolderName.WhateverPathYouPutLoveBarkAt.love-bark")
+local _G.love = require("ScriptMod.Mods.YourModFolderName.WhateverPathYouPutLoveBarkAt.love-bark")
 ```
 
-then, you can decide which components to use:
+(Optional) log helper
 
 ```lua
----@type Love
-_G.love = data.love
+local log = love.log
 ```
-
-(Optional)
-
-```lua
----@type LoveLog
-local log = data.log
-```
-
-(Or also simply)
-
-```lua
----@type Love, LoveLog
-local love, log = data.love, data.log
-```
-
-(of course, only use the above if you're sure you won't be using love in any requires... which to be honest you will)
 
 that's it! now you can use love callback, events, function, etc.
 

@@ -1,0 +1,19 @@
+---@meta
+
+---@class CSUnityEngineColor
+---@field r number
+---@field g number
+---@field b number
+---@field a number
+---@field grayscale number
+---@field linear CSUnityEngineColor
+---@field gamma CSUnityEngineColor
+---@field clear CSUnityEngineColor
+---@field black CSUnityEngineColor
+---@field white CSUnityEngineColor
+---@field red CSUnityEngineColor
+---@field green CSUnityEngineColor
+---@field blue CSUnityEngineColor
+---@field yellow CSUnityEngineColor
+---@field cyan CSUnityEngineColor
+---@field magenta CSUnityEngineColor
