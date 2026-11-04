@@ -367,7 +367,7 @@ end
 function love.pickup(itemid, slot)
 end
 
----@param slot integer
+---@param itemid integer
 function love.drop(itemid)
 end
 
