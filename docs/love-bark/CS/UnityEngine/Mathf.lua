@@ -14,8 +14,6 @@ function Mathf.Abs(value) end
 function Mathf.Clamp(value, min, max) end
 
 ---@param value number
----@param min number
----@param max number
 ---@return number
 function Mathf.Clamp01(value) end
 
